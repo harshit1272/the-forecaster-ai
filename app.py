@@ -12,8 +12,10 @@ import json  # <--- CHANGE 1: Import the json library
 # -----------------------------------------------------------
 st.set_page_config(page_title="The Forecaster | Ratings", page_icon="⭐", layout="wide")
 
+# Replace the CSS block starting on line 14 of your app.py with this:
 st.markdown("""
 <style>
+/* --- Basic setup --- */
 .block-container {padding-top:2rem; padding-bottom:2rem; max-width:1200px;}
 h1,h2,h3,h4,h5 {font-family:'Segoe UI',sans-serif;}
 hr {margin:1rem 0 1.5rem 0;}
@@ -21,7 +23,8 @@ hr {margin:1rem 0 1.5rem 0;}
 /* --- Metric Cards (equal heights) --- */
 .metric-card{
   border-radius:12px;
-  padding:14px 16px;
+  /* Adjusted padding slightly for better space use on mobile */
+  padding:12px 14px; 
   border:1px solid rgba(255,255,255,0.14);
   background:rgba(255,255,255,0.05);
   height:230px;             
@@ -32,13 +35,18 @@ hr {margin:1rem 0 1.5rem 0;}
 }
 .metric-card *{overflow-wrap:anywhere; word-break:break-word;}
 
-/* --- Dotted “equation” boxes --- */
+/* --- Dotted “equation” boxes (.eq) --- */
 .eq{
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   background:rgba(255,255,255,0.04);
-  padding:6px 8px; border-radius:6px;
+  /* Reduced padding */
+  padding:4px 6px; 
+  border-radius:6px;
   border:1px dashed rgba(255,255,255,0.12);
-  font-size:0.92rem; color:#EDEDED; margin-top:4px;
+  /* Slightly smaller font to help with wrapping on mobile */
+  font-size:0.88rem; 
+  color:#EDEDED; 
+  margin-top:4px;
 }
 .eq b{color:#ffffff;}
 .num1{color:#2ECC71;}
