@@ -88,13 +88,13 @@ def load_assets():
 assets = load_assets()
 
 # -----------------------------------------------------------
-# FILTER CATEGORY LIST (≥ 4 entries)
+# FILTER CATEGORY LIST (≥ 7 entries)
 # -----------------------------------------------------------
 try:
     stats = assets["category_stats"]
     valid_categories = (
         stats.groupby("main_category")
-        .filter(lambda x: len(x) >= 4)["main_category"]
+        .filter(lambda x: len(x) >= 7)["main_category"]
         .unique()
         .tolist()
     )
@@ -151,6 +151,8 @@ show_chart = st.checkbox("📊 Show component comparison chart", value=False)
 # -----------------------------------------------------------
 # PREDICTION
 # -----------------------------------------------------------
+final_rating = 0.0 # <--- FIX: Initialize final_rating to prevent NameError on first run
+
 if st.button("✨ Predict Rating", use_container_width=True):
     if discounted_price > actual_price:
         st.error("❌ Discounted price cannot exceed actual price.")
@@ -185,19 +187,34 @@ if st.button("✨ Predict Rating", use_container_width=True):
             ai_adj = ai_raw * desc_rel
 
             # Sentiment (optional)
+            relevance_note = None # Initialize note for display
+            
             if review_content.strip():
-                sent_used = True
                 rev_vec = sbert.encode([review_content])
                 rev_arch = assets["category_review_archetypes"][main_category].astype(np.float32)
                 rev_rel = float(util.cos_sim(rev_vec, rev_arch).item())
                 s_comp = float(assets["sentiment_analyzer"].polarity_scores(str(review_content))['compound'])
                 s_scaled = float(np.clip(3 + 2*s_comp, 1, 5))
                 s_adj = s_scaled * rev_rel
-                text_score = (ai_adj + s_adj)/2.0
+                
+                # --- RELEVANCE THRESHOLD LOGIC ---
+                RELEVANCE_THRESHOLD = 0.5 
+                
+                if rev_rel > RELEVANCE_THRESHOLD:
+                    sent_used = True
+                    # If relevant, take the average of Description (AI) and Sentiment (S)
+                    text_score = (ai_adj + s_adj) / 2.0
+                else:
+                    # If not relevant, ignore sentiment component for final score calculation
+                    sent_used = False
+                    text_score = ai_adj
+                    relevance_note = f"⚠️ Review Relevance ({rev_rel:.3f}) is below {RELEVANCE_THRESHOLD:.1f}. Sentiment **excluded** from text score to prevent unnecessary penalization."
+                # -----------------------------------
             else:
                 sent_used = False
                 s_comp = s_scaled = rev_rel = s_adj = 0.0
                 text_score = ai_adj
+                relevance_note = None
 
             final_rating = float(np.clip((WEIGHT_ML*ml_adj)+(WEIGHT_AI*text_score), 1, 5))
         
@@ -327,7 +344,7 @@ if st.button("✨ Predict Rating", use_container_width=True):
 
         with b3:
             st.markdown("**💬 User-Review (Optional)**")
-            if sent_used:
+            if review_content.strip():
                 st.markdown(
                     f"<div class='metric-card'>"
                     f"<div>Compound Score: {s_comp:.2f}<br>"
@@ -338,8 +355,20 @@ if st.button("✨ Predict Rating", use_container_width=True):
                     f"<div class='eq'>Sentiment adjusted = <span class='num1'>{s_scaled:.3f}</span> × <span class='num2'>{rev_rel:.3f}</span> = <span class='num3'>{s_adj:.3f}</span></div>"
                     f"</div></div>", unsafe_allow_html=True
                 )
+                
+                # Removed the st.warning and st.success messages from here.
             else:
                 st.info("No review provided — sentiment skipped.")
+
+        # -----------------------------------------------------------
+        # RELEVANCE MESSAGE (Placed below the three boxes, with padding)
+        # -----------------------------------------------------------
+        if relevance_note:
+            # Add a small vertical spacer to separate from the boxes above (10px margin)
+            st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+            st.warning(relevance_note)
+            
+        # -----------------------------------------------------------
 
         # -----------------------------------------------------------
         # FINAL FORMULA (colored)
@@ -354,6 +383,7 @@ if st.button("✨ Predict Rating", use_container_width=True):
                 f"</div>", unsafe_allow_html=True
             )
         else:
+            # This covers both "no review provided" and "review not relevant enough"
             st.markdown(
                 f"<div class='final-formula'>"
                 f"<div class='eq'>Final rating = (<span class='num1'>{ml_adj:.3f}</span> × {WEIGHT_ML:.3f}) + (<span class='num2'>{ai_adj:.3f}</span> × {WEIGHT_AI:.3f}) = <b class='num3'>{final_rating:.3f} ⭐</b></div>"
